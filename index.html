@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>智理 - 实验室管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <style>
+        /* ================= 基础与整体布局 ================= */
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; display: flex; margin: 0; height: 100vh; overflow: hidden; }
+        .sidebar { width: 240px; background: #2c3e50; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); z-index: 10; }
+        .sidebar-header { padding: 20px; font-size: 20px; font-weight: bold; text-align: center; border-bottom: 1px solid #34495e; letter-spacing: 2px; }
+        .nav-menu { list-style: none; padding: 0; margin: 0; }
+        .nav-item { padding: 18px 25px; cursor: pointer; transition: all 0.3s; border-left: 4px solid transparent; font-size: 16px; }
+        .nav-item:hover { background: #34495e; }
+        .nav-item.active { background: #34495e; border-left-color: #3498db; font-weight: bold; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; position: relative; }
+        .view-section { display: none; height: 100%; }
+        .view-section.active { display: flex; flex-direction: column; }
+        .page-title { margin-top: 0; margin-bottom: 20px; color: #333; }
+
+        /* ================= 实验室分类 Tabs ================= */
+        .lab-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        .lab-tab { padding: 8px 20px; background: transparent; border: none; border-radius: 6px 6px 0 0; font-size: 15px; font-weight: 600; color: #6c757d; cursor: pointer; transition: all 0.2s; position: relative; }
+        .lab-tab:hover { color: #007bff; background: #f8f9fa; }
+        .lab-tab.active { color: #007bff; }
+        .lab-tab.active::after { content: ''; position: absolute; bottom: -12px; left: 0; width: 100%; height: 3px; background: #007bff; border-radius: 3px 3px 0 0; }
+
+        /* ================= 传统设备表格 ================= */
+        .table-container { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); }
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-normal { background: #d4edda; color: #155724; }
+        .status-faulty { background: #f8d7da; color: #721c24; }
+        .status-unknown { background: #fff3cd; color: #856404; }
+        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 5px; }
+        .btn-diagnose { background: #007bff; color: white; }
+        .btn-diagnose:hover { background: #0056b3; }
+
+        /* ================= AI 聊天室 ================= */
+        .chat-box { flex: 1; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .camera-section { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: #2c3e50; color: white; }
+        .camera-preview { width: 160px; height: 120px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid #34495e; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
+        .camera-controls { flex: 1; padding-left: 20px; }
+        .scan-btn { background: #28a745; padding: 10px 15px; font-size: 14px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #display { flex: 1; overflow-y: auto; padding: 20px; border-bottom: 1px solid #eee; scroll-behavior: smooth; background: #f8f9fa; }
+        .msg-row { margin-bottom: 20px; }
+        .user-msg { color: #0056b3; text-align: right; }
+        .user-msg .content { display: inline-block; background: #e7f3ff; padding: 12px 15px; border-radius: 15px 15px 0 15px; text-align: left; max-width: 80%; word-break: break-all; }
+        .user-msg img { height: 80px; border-radius: 6px; margin: 4px; border: 1px solid #b8daff; }
+        .ai-msg { color: #333; background: #fff; padding: 15px; border-radius: 15px 15px 15px 0; border: 1px solid #e9ecef; line-height: 1.6; max-width: 90%; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .ai-msg pre { background: #282c34; color: white; padding: 12px; border-radius: 8px; overflow-x: auto; }
+        .input-container { display: flex; flex-direction: column; background: #fff; padding: 15px 20px; }
+        #attachment-preview { display: none; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px dashed #ced4da; }
+        .thumb-wrap { position: relative; display: inline-block; }
+        .thumb-wrap img { height: 60px; border-radius: 6px; border: 1px solid #ddd; }
+        .remove-btn { position: absolute; top: -6px; right: -6px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px; }
+        .input-area { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        input[type="text"]:focus { border-color: #007bff; }
+        button.send-btn { padding: 10px 25px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button.send-btn:disabled { background: #ccc; }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">智理 - SmartLab</div>
+        <ul class="nav-menu">
+            <li class="nav-item active" onclick="switchView('device-view', this)">🖥️ 设备台账管理</li>
+            <li class="nav-item" onclick="switchView('chat-view', this)">🤖 AI 实验室助手</li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div id="device-view" class="view-section active">
+            <h2 class="page-title">设备台账管理</h2>
+
+            <div class="lab-tabs" id="lab-tabs-container">
+                <button class="lab-tab active" onclick="switchLab('全部')">🏢 全部设备</button>
+                <button class="lab-tab" onclick="switchLab('计算机实验室')">💻 计算机实验室</button>
+                <button class="lab-tab" onclick="switchLab('化学实验室')">🧪 化学实验室</button>
+                <button class="lab-tab" onclick="switchLab('电子实验室')">⚡ 电子实验室</button>
+            </div>
+
+            <div class="table-container">
+                <div class="toolbar">
+                    <input type="text" placeholder="🔍 搜索设备编号或名称..." style="width: 250px; padding: 8px;">
+                    <button class="btn-add">➕ 新增设备</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>设备编号 (ID)</th>
+                            <th>设备名称</th>
+                            <th>所属实验室</th>
+                            <th>当前状态</th>
+                            <th>最后更新时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="device-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="chat-view" class="view-section">
+            <div class="chat-box">
+                <div class="camera-section">
+                    <div class="camera-preview">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                    </div>
+                    <div class="camera-controls">
+                        <h3 style="margin-top:0; margin-bottom:5px;">👁️ 视觉感知与智能诊断</h3>
+                        <p style="font-size:13px; margin-bottom:10px; color:#bdc3c7;">遇到难以描述的故障？直接拍给 AI 看。</p>
+                        <button id="captureBtn" class="scan-btn" onclick="capturePhoto()">📷 拍取现场图片</button>
+                    </div>
+                </div>
+
+                <div id="display">
+                    <div class="msg-row">
+                        <div class="ai-msg"><strong>🤖 智理：</strong><br>你好！我是实验室专属 AI 助理。请问有什么可以帮您？您可以在左侧设备列表中直接发起诊断，或者在此处拍摄故障照片。</div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div id="attachment-preview"></div>
+                    <div class="input-area">
+                        <input type="text" id="userInput" placeholder="输入设备ID或描述问题，回车发送..."
+                            onkeydown="if(event.keyCode==13) askAI()">
+                        <button id="sendBtn" class="send-btn" onclick="askAI()">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= 1. 视图路由与按需加载策略 =================
+        function switchView(viewId, navElement) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            if (navElement) navElement.classList.add('active');
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            // 核心修复：如果在设备页，只拉取数据；如果切到了 AI 页，才初始化摄像头
+            if (viewId === 'device-view') {
+                loadDevices();
+            } else if (viewId === 'chat-view') {
+                initCamera();
+            }
+        }
+
+        // ================= 2. 传统设备台账逻辑 =================
+        let allMockData = [];
+
+        function loadDevices() {
+            const tbody = document.getElementById('device-table-body');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">正在从 MySQL 数据库加载真实数据...</td></tr>';
+
+            fetch('http://122.51.166.102:12577/api/devices')
+                .then(res => res.json())
+                .then(data => {
+                    allMockData = data;
+                    const activeTab = document.querySelector('.lab-tab.active');
+                    let activeLabName = '全部';
+                    if (activeTab && activeTab.innerText.includes('计算机')) activeLabName = '计算机实验室';
+                    else if (activeTab && activeTab.innerText.includes('化学')) activeLabName = '化学实验室';
+                    else if (activeTab && activeTab.innerText.includes('电子')) activeLabName = '电子实验室';
+
+                    switchLab(activeLabName);
+                })
+                .catch(err => {
+                    console.error("Fetch Error:", err);
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">数据拉取失败！请确保 C++ 服务器已启动。</td></tr>';
+                });
+        }
+
+        function switchLab(labName) {
+            const tabs = document.querySelectorAll('.lab-tab');
+            tabs.forEach(tab => {
+                if (tab.innerText.includes(labName) || (labName === '全部' && tab.innerText.includes('全部'))) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            let filteredData = allMockData;
+            if (labName !== '全部') {
+                filteredData = allMockData.filter(item => item.lab === labName);
+            }
+            renderTable(filteredData);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('device-table-body');
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">暂无设备数据</td></tr>';
+                return;
+            }
+
+            data.forEach(item => {
+                let statusHtml = '';
+                if (item.status === 'NORMAL') statusHtml = '<span class="status-badge status-normal">正常 ✅</span>';
+                else if (item.status === 'FAULTY') statusHtml = '<span class="status-badge status-faulty">故障 ❌</span>';
+                else statusHtml = '<span class="status-badge status-unknown">未知 ⚠️</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.id}</strong></td>
+                    <td>${item.name}</td>
+                    <td><span style="background:#e9ecef; padding:4px 8px; border-radius:4px; font-size:12px;">${item.lab}</span></td>
+                    <td>${statusHtml}</td>
+                    <td>${item.time}</td>
+                    <td>
+                        <button class="btn-action btn-diagnose" onclick="triggerAIDiagnosis('${item.id}')">🤖 智能诊断</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function triggerAIDiagnosis(deviceId) {
+            switchView('chat-view', document.querySelectorAll('.nav-item')[1]);
+            const input = document.getElementById('userInput');
+            input.value = `帮我检查一下设备 ${deviceId} 的状态并给出排障建议。`;
+            input.focus();
+        }
+
+        // ================= 3. AI 视觉感知逻辑 (懒加载封装) =================
+        const video = document.getElementById('video');
+        let attachedImages = [];
+        const MAX_IMAGES = 4;
+        let isCameraInitialized = false; // 摄像头初始化状态锁
+
+        function initCamera() {
+            // 如果已经初始化过了，就不再重复调用硬件
+            if (isCameraInitialized) return;
+
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => { 
+                    video.srcObject = stream; 
+                    isCameraInitialized = true; // 上锁
+                })
+                .catch(err => {
+                    console.error("摄像头调用失败:", err);
+                    document.getElementById('captureBtn').disabled = true;
+                    document.getElementById('captureBtn').innerText = "未检测到摄像头";
+                });
+        }
+
+        function capturePhoto() {
+            if (attachedImages.length >= MAX_IMAGES) {
+                alert(`最多只能添加 ${MAX_IMAGES} 张照片哦！`);
+                return;
+            }
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 320;
+            canvas.height = 240;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            attachedImages.push(base64);
+            renderPreviews();
+            document.getElementById('userInput').focus();
+        }
+
+        function renderPreviews() {
+            const container = document.getElementById('attachment-preview');
+            if (attachedImages.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            container.innerHTML = '';
+            attachedImages.forEach((img, index) => {
+                const div = document.createElement('div');
+                div.className = 'thumb-wrap';
+                div.innerHTML = `<img src="${img}"><button class="remove-btn" onclick="removePhoto(${index})" title="移除">✖</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function removePhoto(index) {
+            attachedImages.splice(index, 1);
+            renderPreviews();
+        }
+
+        marked.setOptions({
+            highlight: function (code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }, breaks: true
+        });
+
+        async function askAI() {
+            const input = document.getElementById('userInput');
+            const display = document.getElementById('display');
+            const btn = document.getElementById('sendBtn');
+            const question = input.value.trim();
+
+            if (!question && attachedImages.length === 0) return;
+
+            let userMsgHtml = '<div>';
+            attachedImages.forEach(img => { userMsgHtml += `<img src="${img}">`; });
+            userMsgHtml += '</div>';
+            if (question) userMsgHtml += `<div style="margin-top: 8px;">${question}</div>`;
+
+            display.innerHTML += `<div class="msg-row user-msg"><div class="content">${userMsgHtml}</div></div>`;
+
+            let finalPrompt = question;
+            if (attachedImages.length > 0 && !question) {
+                finalPrompt = "请仔细观察我提供的照片，识别图中的实验设备，指出是否存在物理损坏，并给出相关建议。";
+            }
+
+            input.value = '';
+            btn.disabled = true;
+            btn.innerText = '发送中...';
+            display.scrollTop = display.scrollHeight;
+
+            const currentImagesToSend = [...attachedImages];
+            attachedImages = [];
+            renderPreviews();
+
+            try {
+                let response;
+                if (currentImagesToSend.length > 0) {
+                    const payload = JSON.stringify({ images: currentImagesToSend, prompt: finalPrompt });
+                    response = await fetch('http://122.51.166.102:12577/api/vision', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload
+                    });
+                } else {
+                    response = await fetch('http://122.51.166.102:12577', {
+                        method: 'POST',
+                        body: finalPrompt
+                    });
+                }
+
+                const answer = await response.text();
+                const htmlAnswer = marked.parse(answer);
+
+                display.innerHTML += `<div class="msg-row"><div class="ai-msg"><strong>🤖 智理：</strong><br>${htmlAnswer}</div></div>`;
+                display.querySelectorAll('pre code').forEach((el) => { hljs.highlightElement(el); });
+
+            } catch (err) {
+                display.innerHTML += `<div class="msg-row"><div class="ai-msg" style="color:red">错误: 网络连接失败。请检查 C++ 后端是否已启动。</div></div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '发送';
+                display.scrollTop = display.scrollHeight;
+            }
+        }
+
+        // ================= 4. 页面启动器 =================
+        // 直接触发侧边栏的第一个按钮，渲染设备列表
+        switchView('device-view', document.querySelector('.nav-item'));
+
+    </script>
+</body>
+</html>

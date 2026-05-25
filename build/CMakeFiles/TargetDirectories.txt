@@ -1,0 +1,3 @@
+/home/Jiasty/SmartLabSys/build/CMakeFiles/SmartLabSys.dir
+/home/Jiasty/SmartLabSys/build/CMakeFiles/edit_cache.dir
+/home/Jiasty/SmartLabSys/build/CMakeFiles/rebuild_cache.dir
